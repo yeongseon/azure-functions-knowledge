@@ -1,0 +1,69 @@
+# Contributing Guide
+
+We welcome contributions to the `azure-functions-knowledge` project.
+
+## Branch Strategy
+
+Use GitHub Flow and branch from `main`.
+
+Recommended branch prefixes:
+
+- `feat/` for new features
+- `fix/` for bug fixes
+- `docs/` for documentation-only changes
+- `chore/` for tooling and maintenance
+- `ci/` for workflow updates
+
+## Development Workflow
+
+1. Create a branch from `main`.
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b feat/your-feature-name
+   ```
+2. Write code and tests.
+3. Run the local quality gate.
+   ```bash
+   make check-all
+   ```
+4. Push and create a pull request.
+   ```bash
+   git push origin feat/your-feature-name
+   ```
+
+## Project Commands
+
+```bash
+make format      # Format code with ruff
+make lint        # Lint with ruff
+make typecheck   # Type check with mypy
+make test        # Run tests
+make cov         # Run tests with coverage
+make check-all   # Run the full local gate
+```
+
+## Commit Message Guidelines
+
+We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
+
+### Examples
+
+```bash
+git commit -m "feat: add Confluence provider"
+git commit -m "fix: handle Notion API rate limits gracefully"
+git commit -m "docs: improve quickstart documentation"
+git commit -m "refactor: extract provider factory logic"
+git commit -m "chore: update dev dependencies"
+```
+
+Use imperative present tense and keep the message concise.
+
+## Deployment
+
+- A merge to `main` triggers the production deployment workflow.
+- Deployment status can be tracked from the related GitHub Actions run.
+
+## Code of Conduct
+
+Be respectful and inclusive. See our [Code of Conduct](CODE_OF_CONDUCT.md) for details.

@@ -1,0 +1,36 @@
+site_name: azure-functions-knowledge
+site_url: https://yeongseon.github.io/azure-functions-knowledge/
+site_description: Knowledge retrieval (RAG) decorators for Azure Functions Python v2
+repo_url: https://github.com/yeongseon/azure-functions-knowledge
+repo_name: yeongseon/azure-functions-knowledge
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+  features:
+    - content.code.copy
+    - navigation.sections
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Getting Started: getting-started.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from importlib.metadata import version
+
 import azure_functions_knowledge
 
 
 class TestPublicApi:
-    def test_version_string(self) -> None:
-        assert azure_functions_knowledge.__version__ == "0.0.1"
+    def test_version_matches_distribution_metadata(self) -> None:
+        assert azure_functions_knowledge.__version__ == version("azure-functions-knowledge-python")
 
     def test_all_exports(self) -> None:
         expected = {

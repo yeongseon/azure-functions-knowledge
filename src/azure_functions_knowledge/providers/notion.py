@@ -20,6 +20,12 @@ except ImportError:
     _HAS_NOTION = False
 
 
+DEFAULT_MAX_DEPTH = 8
+DEFAULT_MAX_BLOCKS = 1000
+# Notion API `blocks.children.list` default and max page size.
+_NOTION_PAGE_SIZE = 100
+
+
 class NotionProvider:
     """Knowledge provider backed by the Notion API."""
 
@@ -27,12 +33,16 @@ class NotionProvider:
         self,
         *,
         connection: str | Mapping[str, str],
-        **kwargs: Any,
+        include_content: bool = True,
+        content_max_chars: int | None = None,
+        max_depth: int = DEFAULT_MAX_DEPTH,
+        max_blocks: int = DEFAULT_MAX_BLOCKS,
+        **kwargs: Any,  # noqa: ARG002 - reserved for forward-compatible provider config
     ) -> None:
         if not _HAS_NOTION:
             msg = (
                 "notion-client is required for NotionProvider. "
-                "Install it with: pip install azure-functions-knowledge-python[notion]"
+                "Install it with: pip install azure-functions-knowledge[notion]"
             )
             raise ProviderError(msg)
 
@@ -51,6 +61,11 @@ class NotionProvider:
             msg = f"Failed to initialize Notion client: {exc}"
             raise AuthError(msg) from exc
 
+        self._include_content = include_content
+        self._content_max_chars = content_max_chars
+        self._max_depth = max_depth
+        self._max_blocks = max_blocks
+
     def search(self, query: str, *, top: int = 5) -> list[Document]:
         try:
             response = self._client.search(
@@ -64,7 +79,21 @@ class NotionProvider:
 
         results: list[Document] = []
         for page in response.get("results", []):
-            doc = _page_to_document(page)
+            page_id = page.get("id", "")
+            if not page_id:
+                continue
+
+            if self._include_content:
+                try:
+                    blocks = self._fetch_all_blocks(page_id)
+                except APIResponseError as exc:
+                    msg = f"Notion API error fetching blocks for page {page_id}: {exc}"
+                    raise ProviderError(msg) from exc
+                content = self._render_content(blocks)
+            else:
+                content = ""
+
+            doc = _page_to_document(page, content=content)
             if doc is not None:
                 results.append(doc)
         return results
@@ -76,11 +105,10 @@ class NotionProvider:
             msg = f"Notion API error retrieving page {document_id}: {exc}"
             raise ProviderError(msg) from exc
 
-        blocks_response = self._client.blocks.children.list(block_id=document_id)
-        blocks = blocks_response.get("results", [])
+        blocks = self._fetch_all_blocks(document_id)
 
         title = _extract_title(page)
-        content = _blocks_to_text(blocks)
+        content = self._render_content(blocks)
         url = page.get("url", "")
 
         return Document(
@@ -95,8 +123,28 @@ class NotionProvider:
     def close(self) -> None:
         pass
 
+    # ---- helpers -------------------------------------------------------
 
-def _page_to_document(page: dict[str, Any]) -> Document | None:
+    def _fetch_all_blocks(self, block_id: str) -> list[dict[str, Any]]:
+        return _fetch_all_blocks(
+            self._client,
+            block_id,
+            max_depth=self._max_depth,
+            max_blocks=self._max_blocks,
+        )
+
+    def _render_content(self, blocks: list[dict[str, Any]]) -> str:
+        content = _blocks_to_text(blocks)
+        if self._content_max_chars is not None and len(content) > self._content_max_chars:
+            content = content[: self._content_max_chars]
+        return content
+
+
+def _page_to_document(
+    page: dict[str, Any],
+    *,
+    content: str = "",
+) -> Document | None:
     page_id = page.get("id", "")
     if not page_id:
         return None
@@ -106,7 +154,7 @@ def _page_to_document(page: dict[str, Any]) -> Document | None:
 
     return Document(
         document_id=page_id,
-        content="",
+        content=content,
         title=title,
         url=url,
         source="notion",
@@ -128,13 +176,85 @@ def _blocks_to_text(blocks: list[dict[str, Any]]) -> str:
     for block in blocks:
         block_type = block.get("type", "")
         block_data = block.get(block_type, {})
+        if not isinstance(block_data, Mapping):
+            continue
         rich_texts = block_data.get("rich_text", [])
+        if not isinstance(rich_texts, list):
+            continue
         for rt in rich_texts:
+            if not isinstance(rt, Mapping):
+                continue
             plain = rt.get("plain_text", "")
             if plain:
                 texts.append(plain)
     return "\n".join(texts)
 
 
-if _HAS_NOTION:
-    register_provider("notion", NotionProvider)
+def _fetch_all_blocks(
+    client: Any,
+    block_id: str,
+    *,
+    max_depth: int,
+    max_blocks: int,
+    _depth: int = 0,
+    _seen: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch child blocks depth-first, paginating and recursing into children.
+
+    Returns blocks in depth-first order so :func:`_blocks_to_text` produces a
+    natural reading order. Respects ``max_depth`` and ``max_blocks`` caps and
+    guards against cycles via a per-call ``_seen`` set.
+
+    Notion API rate limits apply; callers who need lower cost can lower
+    ``max_blocks`` / ``max_depth`` or set ``include_content=False`` on the
+    provider.
+    """
+    if _seen is None:
+        _seen = set()
+    if block_id in _seen:
+        return []
+    _seen.add(block_id)
+    if _depth > max_depth or max_blocks <= 0:
+        return []
+
+    collected: list[dict[str, Any]] = []
+    cursor: str | None = None
+    while len(collected) < max_blocks:
+        kwargs: dict[str, Any] = {
+            "block_id": block_id,
+            "page_size": _NOTION_PAGE_SIZE,
+        }
+        if cursor is not None:
+            kwargs["start_cursor"] = cursor
+        response = client.blocks.children.list(**kwargs)
+        for block in response.get("results", []):
+            if len(collected) >= max_blocks:
+                break
+            collected.append(block)
+            if block.get("has_children") and _depth + 1 <= max_depth:
+                child_id = block.get("id")
+                remaining = max_blocks - len(collected)
+                if child_id and remaining > 0:
+                    children = _fetch_all_blocks(
+                        client,
+                        child_id,
+                        max_depth=max_depth,
+                        max_blocks=remaining,
+                        _depth=_depth + 1,
+                        _seen=_seen,
+                    )
+                    collected.extend(children)
+        if not response.get("has_more"):
+            break
+        cursor = response.get("next_cursor")
+        if not cursor:
+            break
+
+    return collected
+
+
+# Register unconditionally so ``create_provider("notion")`` reaches the
+# actionable ``ProviderError`` in ``NotionProvider.__init__`` when the
+# optional ``notion-client`` extra is not installed, instead of falling
+# through to the generic "Unknown provider" error in the registry.
+register_provider("notion", NotionProvider)

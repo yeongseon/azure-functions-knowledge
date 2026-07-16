@@ -154,6 +154,16 @@ make install
 make check-all
 ```
 
+## For AI Coding Assistants
+
+This repository includes `llms.txt` and `llms-full.txt` in the root directory.
+These files provide comprehensive package and API information optimized for LLM context windows.
+
+- **`llms.txt`** — Quick reference with core API, installation, and quick-start example
+- **`llms-full.txt`** — Complete reference with full signatures, patterns, design principles, and ecosystem context
+
+Use these files to get better context when working with this package in AI-assisted coding environments.
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.

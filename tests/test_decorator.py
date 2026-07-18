@@ -241,3 +241,76 @@ class TestAsyncHandlers:
         await handler(timer=MagicMock())
         assert len(captured) == 2
         assert len(captured[1]) == 5
+
+
+class TestToolkitMetadata:
+    def test_input_publishes_metadata(self, kb: KnowledgeBindings) -> None:
+        @kb.input("docs", provider="fake", query="hello", connection="token")
+        def handler(timer: Any, docs: list[Document]) -> list[Document]:
+            return docs
+
+        meta = getattr(handler, "_azure_functions_metadata")["knowledge"]
+        assert meta == {
+            "version": 1,
+            "mode": "input",
+            "provider": "fake",
+            "arg_name": "docs",
+            "query": "static",
+            "top": 5,
+        }
+
+    def test_input_dynamic_query_metadata(self, kb: KnowledgeBindings) -> None:
+        @kb.input(
+            "docs",
+            provider="fake",
+            query=lambda req: str(req),
+            connection="token",
+            top=3,
+        )
+        def handler(req: Any, docs: list[Document]) -> list[Document]:
+            return docs
+
+        meta = getattr(handler, "_azure_functions_metadata")["knowledge"]
+        assert meta["query"] == "dynamic"
+        assert meta["top"] == 3
+
+    def test_inject_client_publishes_metadata(self, kb: KnowledgeBindings) -> None:
+        @kb.inject_client("client", provider="fake", connection="tok")
+        def handler(timer: Any, client: Any) -> None:
+            return None
+
+        meta = getattr(handler, "_azure_functions_metadata")["knowledge"]
+        assert meta == {
+            "version": 1,
+            "mode": "inject_client",
+            "provider": "fake",
+            "arg_name": "client",
+        }
+
+
+class TestAsyncProxy:
+    @pytest.mark.asyncio()
+    async def test_callable_offloaded_and_attrs_and_close(self) -> None:
+        from azure_functions_knowledge.decorator import AsyncProxy
+
+        class Target:
+            name = "target"
+
+            def __init__(self) -> None:
+                self.closed = False
+
+            def echo(self, value: str) -> str:
+                return value
+
+            def close(self) -> None:
+                self.closed = True
+
+        target = Target()
+        proxy = AsyncProxy(target)
+        # Non-callable attribute is returned as-is.
+        assert proxy.name == "target"
+        # Callable attribute is offloaded and awaitable.
+        assert await proxy.echo("hi") == "hi"
+        # close is intentionally synchronous.
+        proxy.close()
+        assert target.closed is True

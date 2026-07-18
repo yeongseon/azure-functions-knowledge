@@ -243,66 +243,112 @@ class TestAsyncHandlers:
         assert len(captured) == 2
         assert len(captured[1]) == 5
 
+    @pytest.mark.asyncio()
+    async def test_async_input_propagates_error_and_closes(
+        self, kb: KnowledgeBindings
+    ) -> None:
+        created: list[FakeProvider] = []
 
-class TestAsyncProviderProxy:
-    def test_get_document_offloads_to_thread(self) -> None:
-        import asyncio
+        class TrackingProvider(FakeProvider):
+            def __init__(self, **kwargs: Any) -> None:
+                super().__init__(**kwargs)
+                created.append(self)
 
-        from azure_functions_knowledge.decorator import _AsyncProviderProxy
+        register_provider("tracking", TrackingProvider)
 
-        doc = Document(
-            document_id="d1",
-            content="body",
-            title="T",
-            url="https://example.com/d1",
-            source="fake",
+        @kb.input("docs", provider="tracking", query="boom", connection="tok")
+        async def handler(timer: Any, docs: list[Document]) -> None:
+            raise RuntimeError("handler failed")
+
+        with pytest.raises(RuntimeError, match="handler failed"):
+            await handler(timer=MagicMock())
+
+        # The exception must propagate AND the provider must be closed,
+        # mirroring synchronous ``with`` semantics.
+        assert len(created) == 1
+        assert created[0].closed is True
+
+
+class TestToolkitMetadata:
+    def test_input_publishes_metadata(self, kb: KnowledgeBindings) -> None:
+        @kb.input("docs", provider="fake", query="hello", connection="token")
+        def handler(timer: Any, docs: list[Document]) -> list[Document]:
+            return docs
+
+        meta = getattr(handler, "_azure_functions_metadata")["knowledge"]
+        assert meta == {
+            "version": 1,
+            "mode": "input",
+            "provider": "fake",
+            "arg_name": "docs",
+            "query": "static",
+            "top": 5,
+        }
+
+    def test_input_dynamic_query_metadata(self, kb: KnowledgeBindings) -> None:
+        @kb.input(
+            "docs",
+            provider="fake",
+            query=lambda req: str(req),
+            connection="token",
+            top=3,
         )
-        provider = MagicMock()
-        provider.get_document.return_value = doc
-        proxy = _AsyncProviderProxy(provider)
+        def handler(req: Any, docs: list[Document]) -> list[Document]:
+            return docs
 
-        with mock.patch(
-            "azure_functions_knowledge.decorator.asyncio.to_thread",
-            wraps=asyncio.to_thread,
-        ) as to_thread:
-            result = asyncio.run(proxy.get_document("d1"))
+        meta = getattr(handler, "_azure_functions_metadata")["knowledge"]
+        assert meta["query"] == "dynamic"
+        assert meta["top"] == 3
 
-        assert result is doc
-        provider.get_document.assert_called_once_with("d1")
-        # Enforce that the call was actually routed through asyncio.to_thread
-        # so a regression to a blocking call is caught.
-        to_thread.assert_called_once()
-        assert to_thread.call_args.args[0] == provider.get_document
+    def test_inject_client_publishes_metadata(self, kb: KnowledgeBindings) -> None:
+        @kb.inject_client("client", provider="fake", connection="tok")
+        def handler(timer: Any, client: Any) -> None:
+            return None
 
-    def test_search_offloads_to_thread(self) -> None:
+        meta = getattr(handler, "_azure_functions_metadata")["knowledge"]
+        assert meta == {
+            "version": 1,
+            "mode": "inject_client",
+            "provider": "fake",
+            "arg_name": "client",
+        }
+
+
+class TestAsyncProxy:
+    @pytest.mark.asyncio()
+    async def test_callable_offloaded_and_attrs_and_close(self) -> None:
         import asyncio
 
-        from azure_functions_knowledge.decorator import _AsyncProviderProxy
+        from azure_functions_knowledge.decorator import AsyncProxy
 
-        provider = MagicMock()
-        provider.search.return_value = []
-        proxy = _AsyncProviderProxy(provider)
+        class Target:
+            name = "target"
 
+            def __init__(self) -> None:
+                self.closed = False
+
+            def echo(self, value: str) -> str:
+                return value
+
+            def close(self) -> None:
+                self.closed = True
+
+        target = Target()
+        proxy = AsyncProxy(target)
+        # Non-callable attribute is returned as-is.
+        assert proxy.name == "target"
+        # Callable attribute is offloaded via asyncio.to_thread and awaitable.
         with mock.patch(
             "azure_functions_knowledge.decorator.asyncio.to_thread",
             wraps=asyncio.to_thread,
         ) as to_thread:
-            result = asyncio.run(proxy.search("q", top=3))
-
-        assert result == []
-        provider.search.assert_called_once_with("q", top=3)
+            assert await proxy.echo("hi") == "hi"
+        # Enforce the offload so a regression to a blocking call is caught.
         to_thread.assert_called_once()
-        assert to_thread.call_args.args[0] == provider.search
-
-    def test_close_delegates_to_provider(self) -> None:
-        from azure_functions_knowledge.decorator import _AsyncProviderProxy
-
-        provider = MagicMock()
-        proxy = _AsyncProviderProxy(provider)
-
+        assert to_thread.call_args.args[0] == target.echo
+        # close is intentionally synchronous.
         proxy.close()
-
-        provider.close.assert_called_once_with()
+        assert target.closed is True
 
 
 class TestGetDecoratorsDefensive:

@@ -8,14 +8,14 @@ package. (`DESIGN.md` links here.)
 
 | Component | File | Responsibility |
 |-----------|------|----------------|
-| `KnowledgeBindings` | `decorator.py` | Public decorator API (`input`, `inject_client`). Validates arg names, composition, and query callables; builds the host-facing signature. |
-| Provider registry | `providers/base.py` | `register_provider` / `create_provider` / `get_registered_providers` over a process-wide name → class map. |
-| `KnowledgeProvider` | `providers/base.py` | Structural `Protocol` (`search`, `get_document`, `close`). |
-| `NotionProvider` | `providers/notion.py` | Built-in provider backed by the Notion API. |
-| `resolve_connection` | `auth.py` | `%VAR%` environment-variable substitution for connection strings. |
-| `_AsyncProviderProxy` | `decorator.py` | Wraps a sync provider so async handlers can `await` its calls. |
-| `Document` | `types.py` | Dataclass returned to handlers. |
-| Errors | `errors.py` | `KnowledgeError` hierarchy. |
+| `KnowledgeBindings` | `src/azure_functions_knowledge/decorator.py` | Public decorator API (`input`, `inject_client`). Validates arg names, composition, and query callables; builds the host-facing signature. |
+| Provider registry | `src/azure_functions_knowledge/providers/base.py` | `register_provider` / `create_provider` / `get_registered_providers` over a process-wide name → class map. |
+| `KnowledgeProvider` | `src/azure_functions_knowledge/providers/base.py` | Structural `Protocol` (`search`, `get_document`, `close`). |
+| `NotionProvider` | `src/azure_functions_knowledge/providers/notion.py` | Built-in provider backed by the Notion API. |
+| `resolve_connection` | `src/azure_functions_knowledge/auth.py` | `%VAR%` environment-variable substitution for connection strings. |
+| `_AsyncProviderProxy` | `src/azure_functions_knowledge/decorator.py` | Wraps a sync provider so async handlers can `await` its calls. |
+| `Document` | `src/azure_functions_knowledge/types.py` | Dataclass returned to handlers. |
+| Errors | `src/azure_functions_knowledge/errors.py` | `KnowledgeError` hierarchy. |
 
 ## Request flow
 

@@ -18,7 +18,15 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Getting Started: getting-started.md
+  - Usage: usage.md
+  - Configuration: configuration.md
+  - API Reference: api.md
   - Architecture: architecture.md
+  - Providers:
+      - Notion: providers/notion.md
+  - Testing: testing.md
+  - Troubleshooting: troubleshooting.md
+  - FAQ: faq.md
 
 plugins:
   - search

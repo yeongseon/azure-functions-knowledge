@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 import functools
 import inspect
 import logging
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 _RESERVED_ARGS = frozenset({"timer", "req", "context", "msg", "input", "output"})
 _KNOWLEDGE_DECORATOR_ATTR = "_knowledge_decorators"
+_TOOLKIT_META_ATTR = "_azure_functions_metadata"
 
 
 def _get_decorators(fn: Callable[..., Any]) -> frozenset[str]:
@@ -26,6 +28,24 @@ def _get_decorators(fn: Callable[..., Any]) -> frozenset[str]:
 
 def _mark_decorator(fn: Callable[..., Any], name: str) -> None:
     setattr(fn, _KNOWLEDGE_DECORATOR_ATTR, _get_decorators(fn) | {name})
+
+
+def _write_toolkit_metadata(
+    wrapper: Callable[..., Any],
+    fn: Callable[..., Any],
+    meta: dict[str, Any],
+) -> None:
+    """Publish knowledge metadata on the ecosystem-wide convention attribute.
+
+    Sibling toolkit packages (``azure-functions-openapi``, validation, logging)
+    introspect ``_azure_functions_metadata`` to compose behavior. Writing the
+    ``knowledge`` namespace here lets those tools discover knowledge-backed
+    handlers instead of the package being an island. Consumers never need to
+    import this package.
+    """
+    combined = dict(getattr(fn, _TOOLKIT_META_ATTR, None) or {})
+    combined["knowledge"] = meta
+    setattr(wrapper, _TOOLKIT_META_ATTR, combined)
 
 
 def _check_composition(fn: Callable[..., Any], name: str) -> None:
@@ -73,18 +93,53 @@ def _build_host_signature(
     return sig.replace(parameters=params)
 
 
-class _AsyncProviderProxy:
-    def __init__(self, provider: Any) -> None:
-        self._provider = provider
+@contextmanager
+def _provider_context(
+    provider_name: str,
+    connection: str | Mapping[str, str],
+    provider_kwargs: dict[str, Any],
+) -> Iterator[Any]:
+    """Create a provider, yield it, and always close it.
 
-    async def search(self, query: str, *, top: int = 5) -> list[Document]:
-        return await asyncio.to_thread(self._provider.search, query, top=top)
+    Centralizes the provider lifecycle so every wrapper shares one create →
+    use → close path. This is also the natural seam for future provider
+    pooling.
+    """
+    provider = create_provider(
+        provider_name,
+        connection=connection,
+        **provider_kwargs,
+    )
+    try:
+        yield provider
+    finally:
+        provider.close()
 
-    async def get_document(self, document_id: str) -> Document:
-        return await asyncio.to_thread(self._provider.get_document, document_id)
+
+class AsyncProxy:
+    """Wrap a synchronous provider so async handlers can ``await`` its methods.
+
+    Any attribute access that resolves to a callable is offloaded to a worker
+    thread via :func:`asyncio.to_thread`, so the proxy does not need editing
+    when the provider protocol grows new methods. Non-callable attributes are
+    returned as-is. ``close`` is intentionally kept synchronous.
+    """
+
+    def __init__(self, target: Any) -> None:
+        self._target = target
+
+    def __getattr__(self, name: str) -> Any:
+        attr = getattr(self._target, name)
+        if not callable(attr):
+            return attr
+
+        async def _async_call(*args: Any, **kwargs: Any) -> Any:
+            return await asyncio.to_thread(attr, *args, **kwargs)
+
+        return _async_call
 
     def close(self) -> None:
-        self._provider.close()
+        self._target.close()
 
 
 class KnowledgeBindings:
@@ -101,6 +156,62 @@ class KnowledgeBindings:
         - ``input`` and ``inject_client`` are mutually exclusive
         - No decorator can be applied twice to the same handler
     """
+
+    def _wrap_handler(
+        self,
+        fn: Callable[..., Any],
+        arg_name: str,
+        make_injection: Callable[[dict[str, Any], bool], Any],
+        mark_name: str,
+        meta: dict[str, Any],
+    ) -> Callable[..., Any]:
+        """Build the sync/async handler wrapper shared by both decorators.
+
+        ``make_injection(kwargs, is_async)`` returns a context manager that
+        yields the value to inject into ``arg_name``. The provider stays alive
+        for the duration of the ``with`` block (i.e. while the handler runs).
+        """
+        is_async = inspect.iscoroutinefunction(fn)
+
+        if is_async:
+
+            @functools.wraps(fn)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+                cm = make_injection(kwargs, True)
+                # Entering may create a provider and/or run a blocking search,
+                # so offload it to keep the event loop responsive.
+                value = await asyncio.to_thread(cm.__enter__)
+                kwargs[arg_name] = value
+                try:
+                    result = await fn(*args, **kwargs)
+                except BaseException as exc:
+                    # Mirror ``with`` semantics: forward the exception to
+                    # ``__exit__`` and only suppress it if the context manager
+                    # returns a truthy value.
+                    suppress = await asyncio.to_thread(
+                        cm.__exit__, type(exc), exc, exc.__traceback__
+                    )
+                    if not suppress:
+                        raise
+                    return None
+                await asyncio.to_thread(cm.__exit__, None, None, None)
+                return result
+
+            wrapper: Callable[..., Any] = async_wrapper
+        else:
+
+            @functools.wraps(fn)
+            def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+                with make_injection(kwargs, False) as value:
+                    kwargs[arg_name] = value
+                    return fn(*args, **kwargs)
+
+            wrapper = sync_wrapper
+
+        setattr(wrapper, "__signature__", _build_host_signature(fn, {arg_name}))
+        _mark_decorator(wrapper, mark_name)
+        _write_toolkit_metadata(wrapper, fn, meta)
+        return wrapper
 
     def input(
         self,
@@ -150,8 +261,6 @@ class KnowledgeBindings:
                     raise ConfigurationError(msg)
                 query_resolver_params = resolver_param_names
 
-            is_async = inspect.iscoroutinefunction(fn)
-
             def _resolve_query(all_kwargs: dict[str, Any]) -> str:
                 if query_callable is not None:
                     call_kwargs = {
@@ -165,44 +274,23 @@ class KnowledgeBindings:
                     raise ConfigurationError(msg)
                 return query_static
 
-            def _execute_search(resolved_query: str) -> list[Document]:
-                prov = create_provider(
-                    provider_name,
-                    connection=provider_connection,
-                    **provider_kwargs,
-                )
-                try:
-                    return prov.search(resolved_query, top=top)
-                finally:
-                    prov.close()
+            @contextmanager
+            def _make_injection(
+                all_kwargs: dict[str, Any], _is_async: bool
+            ) -> Iterator[list[Document]]:
+                resolved = _resolve_query(all_kwargs)
+                with _provider_context(provider_name, provider_connection, provider_kwargs) as prov:
+                    yield prov.search(resolved, top=top)
 
-            if is_async:
-
-                @functools.wraps(fn)
-                async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-                    resolved = _resolve_query(kwargs)
-                    data = await asyncio.to_thread(_execute_search, resolved)
-                    kwargs[arg_name] = data
-                    return await fn(*args, **kwargs)
-
-                setattr(
-                    async_wrapper,
-                    "__signature__",
-                    _build_host_signature(fn, {arg_name}),
-                )
-                _mark_decorator(async_wrapper, "input")
-                return async_wrapper
-
-            @functools.wraps(fn)
-            def wrapper(*args: Any, **kwargs: Any) -> Any:
-                resolved = _resolve_query(kwargs)
-                data = _execute_search(resolved)
-                kwargs[arg_name] = data
-                return fn(*args, **kwargs)
-
-            setattr(wrapper, "__signature__", _build_host_signature(fn, {arg_name}))
-            _mark_decorator(wrapper, "input")
-            return wrapper
+            meta = {
+                "version": 1,
+                "mode": "input",
+                "provider": provider_name,
+                "arg_name": arg_name,
+                "query": "dynamic" if query_callable is not None else "static",
+                "top": top,
+            }
+            return self._wrap_handler(fn, arg_name, _make_injection, "input", meta)
 
         return decorator
 
@@ -221,47 +309,18 @@ class KnowledgeBindings:
         def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
             _check_composition(fn, "inject_client")
             _validate_arg_name(arg_name, fn, "inject_client")
-            is_async = inspect.iscoroutinefunction(fn)
 
-            if is_async:
+            @contextmanager
+            def _make_injection(_all_kwargs: dict[str, Any], is_async: bool) -> Iterator[Any]:
+                with _provider_context(provider_name, provider_connection, provider_kwargs) as prov:
+                    yield AsyncProxy(prov) if is_async else prov
 
-                @functools.wraps(fn)
-                async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-                    prov = create_provider(
-                        provider_name,
-                        connection=provider_connection,
-                        **provider_kwargs,
-                    )
-                    proxy = _AsyncProviderProxy(prov)
-                    try:
-                        kwargs[arg_name] = proxy
-                        return await fn(*args, **kwargs)
-                    finally:
-                        prov.close()
-
-                setattr(
-                    async_wrapper,
-                    "__signature__",
-                    _build_host_signature(fn, {arg_name}),
-                )
-                _mark_decorator(async_wrapper, "inject_client")
-                return async_wrapper
-
-            @functools.wraps(fn)
-            def wrapper(*args: Any, **kwargs: Any) -> Any:
-                prov = create_provider(
-                    provider_name,
-                    connection=provider_connection,
-                    **provider_kwargs,
-                )
-                try:
-                    kwargs[arg_name] = prov
-                    return fn(*args, **kwargs)
-                finally:
-                    prov.close()
-
-            setattr(wrapper, "__signature__", _build_host_signature(fn, {arg_name}))
-            _mark_decorator(wrapper, "inject_client")
-            return wrapper
+            meta = {
+                "version": 1,
+                "mode": "inject_client",
+                "provider": provider_name,
+                "arg_name": arg_name,
+            }
+            return self._wrap_handler(fn, arg_name, _make_injection, "inject_client", meta)
 
         return decorator

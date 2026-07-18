@@ -241,3 +241,64 @@ class TestAsyncHandlers:
         await handler(timer=MagicMock())
         assert len(captured) == 2
         assert len(captured[1]) == 5
+
+
+
+class TestAsyncProviderProxy:
+    def test_get_document_offloads_to_thread(self) -> None:
+        import asyncio
+
+        from azure_functions_knowledge.decorator import _AsyncProviderProxy
+
+        doc = Document(
+            document_id="d1",
+            content="body",
+            title="T",
+            url="https://example.com/d1",
+            source="fake",
+        )
+        provider = MagicMock()
+        provider.get_document.return_value = doc
+        proxy = _AsyncProviderProxy(provider)
+
+        result = asyncio.run(proxy.get_document("d1"))
+
+        assert result is doc
+        provider.get_document.assert_called_once_with("d1")
+
+    def test_search_offloads_to_thread(self) -> None:
+        import asyncio
+
+        from azure_functions_knowledge.decorator import _AsyncProviderProxy
+
+        provider = MagicMock()
+        provider.search.return_value = []
+        proxy = _AsyncProviderProxy(provider)
+
+        result = asyncio.run(proxy.search("q", top=3))
+
+        assert result == []
+        provider.search.assert_called_once_with("q", top=3)
+
+    def test_close_delegates_to_provider(self) -> None:
+        from azure_functions_knowledge.decorator import _AsyncProviderProxy
+
+        provider = MagicMock()
+        proxy = _AsyncProviderProxy(provider)
+
+        proxy.close()
+
+        provider.close.assert_called_once_with()
+
+
+class TestGetDecoratorsDefensive:
+    def test_non_frozenset_marker_is_ignored(self) -> None:
+        from azure_functions_knowledge.decorator import _get_decorators
+
+        def fn() -> None:
+            pass
+
+        # A corrupted / unexpected marker value must degrade to an empty set
+        # rather than raise, so composition checks stay robust.
+        setattr(fn, "_knowledge_decorators", "not-a-frozenset")
+        assert _get_decorators(fn) == frozenset()

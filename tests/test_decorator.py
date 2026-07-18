@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 from typing import Any
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -316,6 +317,8 @@ class TestToolkitMetadata:
 class TestAsyncProxy:
     @pytest.mark.asyncio()
     async def test_callable_offloaded_and_attrs_and_close(self) -> None:
+        import asyncio
+
         from azure_functions_knowledge.decorator import AsyncProxy
 
         class Target:
@@ -334,8 +337,28 @@ class TestAsyncProxy:
         proxy = AsyncProxy(target)
         # Non-callable attribute is returned as-is.
         assert proxy.name == "target"
-        # Callable attribute is offloaded and awaitable.
-        assert await proxy.echo("hi") == "hi"
+        # Callable attribute is offloaded via asyncio.to_thread and awaitable.
+        with mock.patch(
+            "azure_functions_knowledge.decorator.asyncio.to_thread",
+            wraps=asyncio.to_thread,
+        ) as to_thread:
+            assert await proxy.echo("hi") == "hi"
+        # Enforce the offload so a regression to a blocking call is caught.
+        to_thread.assert_called_once()
+        assert to_thread.call_args.args[0] == target.echo
         # close is intentionally synchronous.
         proxy.close()
         assert target.closed is True
+
+
+class TestGetDecoratorsDefensive:
+    def test_non_frozenset_marker_is_ignored(self) -> None:
+        from azure_functions_knowledge.decorator import _get_decorators
+
+        def fn() -> None:
+            pass
+
+        # A corrupted / unexpected marker value must degrade to an empty set
+        # rather than raise, so composition checks stay robust.
+        setattr(fn, "_knowledge_decorators", "not-a-frozenset")
+        assert _get_decorators(fn) == frozenset()

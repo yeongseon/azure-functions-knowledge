@@ -563,3 +563,33 @@ class TestNotionProvider:
             provider = NotionProvider(connection="tok")
             with pytest.raises(ProviderError, match="Notion API error"):
                 provider.get_document("page-1")
+
+
+class TestNotionProviderInitFailure:
+    def test_client_init_failure_raises_auth_error(self) -> None:
+        with patch(
+            "azure_functions_knowledge.providers.notion.NotionClient",
+            side_effect=RuntimeError("boom"),
+        ):
+            with pytest.raises(AuthError, match="Failed to initialize Notion client"):
+                NotionProvider(connection="tok")
+
+
+class TestFetchAllBlocksEdgeCases:
+    def test_zero_max_blocks_returns_empty(self) -> None:
+        client = MagicMock()
+        blocks = _fetch_all_blocks(client, "root", max_depth=8, max_blocks=0)
+        assert blocks == []
+        client.blocks.children.list.assert_not_called()
+
+    def test_has_more_without_next_cursor_stops(self) -> None:
+        client = MagicMock()
+        # has_more is True but next_cursor is absent: the loop must break
+        # instead of paginating forever.
+        client.blocks.children.list.return_value = {
+            "results": [_make_block("only")],
+            "has_more": True,
+        }
+        blocks = _fetch_all_blocks(client, "root", max_depth=8, max_blocks=1000)
+        assert len(blocks) == 1
+        client.blocks.children.list.assert_called_once()

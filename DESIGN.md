@@ -42,6 +42,11 @@ signature rules, then create wrappers that call `create_provider()` with resolve
 Providers return `Document` objects or provider clients, and wrappers inject those values into the
 handler call path.
 
+> The canonical, fuller architecture diagram — including the async proxy
+> (`_AsyncProviderProxy`), the `resolve_connection` step, and error paths — lives
+> in the docs at [`docs/architecture.md`](docs/architecture.md). The diagram
+> below is a high-level summary.
+
 ```mermaid
 flowchart TD
     subgraph Registration ["Decorator Registration"]

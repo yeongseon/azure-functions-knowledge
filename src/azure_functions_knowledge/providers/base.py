@@ -13,6 +13,10 @@ _PROVIDER_REGISTRY: dict[str, type[KnowledgeProvider]] = {}
 class KnowledgeProvider(Protocol):
     """Protocol that all knowledge providers must satisfy."""
 
+    def __init__(
+        self, *, connection: str | Mapping[str, str], **kwargs: Any
+    ) -> None: ...
+
     def search(self, query: str, *, top: int = 5) -> list[Document]: ...
 
     def get_document(self, document_id: str) -> Document: ...
@@ -36,7 +40,11 @@ def create_provider(
         available = sorted(_PROVIDER_REGISTRY.keys())
         msg = f"Unknown provider '{name}'. Available: {available}"
         raise ConfigurationError(msg)
-    return provider_cls(connection=connection, **kwargs)  # type: ignore[call-arg]
+    # Provider-specific kwargs are validated by each provider's __init__.
+    # A typed config layer (e.g. Unpack[ProviderConfig]) is deferred until the
+    # Python floor reaches 3.11+ or typing_extensions is adopted; on 3.10 a
+    # TypedDict cannot be connected to **kwargs in a type-safe way. See #32.
+    return provider_cls(connection=connection, **kwargs)
 
 
 def get_registered_providers() -> list[str]:

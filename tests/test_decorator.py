@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 from typing import Any
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -243,7 +244,6 @@ class TestAsyncHandlers:
         assert len(captured[1]) == 5
 
 
-
 class TestAsyncProviderProxy:
     def test_get_document_offloads_to_thread(self) -> None:
         import asyncio
@@ -261,10 +261,18 @@ class TestAsyncProviderProxy:
         provider.get_document.return_value = doc
         proxy = _AsyncProviderProxy(provider)
 
-        result = asyncio.run(proxy.get_document("d1"))
+        with mock.patch(
+            "azure_functions_knowledge.decorator.asyncio.to_thread",
+            wraps=asyncio.to_thread,
+        ) as to_thread:
+            result = asyncio.run(proxy.get_document("d1"))
 
         assert result is doc
         provider.get_document.assert_called_once_with("d1")
+        # Enforce that the call was actually routed through asyncio.to_thread
+        # so a regression to a blocking call is caught.
+        to_thread.assert_called_once()
+        assert to_thread.call_args.args[0] == provider.get_document
 
     def test_search_offloads_to_thread(self) -> None:
         import asyncio
@@ -275,10 +283,16 @@ class TestAsyncProviderProxy:
         provider.search.return_value = []
         proxy = _AsyncProviderProxy(provider)
 
-        result = asyncio.run(proxy.search("q", top=3))
+        with mock.patch(
+            "azure_functions_knowledge.decorator.asyncio.to_thread",
+            wraps=asyncio.to_thread,
+        ) as to_thread:
+            result = asyncio.run(proxy.search("q", top=3))
 
         assert result == []
         provider.search.assert_called_once_with("q", top=3)
+        to_thread.assert_called_once()
+        assert to_thread.call_args.args[0] == provider.search
 
     def test_close_delegates_to_provider(self) -> None:
         from azure_functions_knowledge.decorator import _AsyncProviderProxy

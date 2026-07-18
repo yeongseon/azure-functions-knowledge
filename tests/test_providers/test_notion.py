@@ -565,7 +565,6 @@ class TestNotionProvider:
                 provider.get_document("page-1")
 
 
-
 class TestNotionProviderInitFailure:
     def test_client_init_failure_raises_auth_error(self) -> None:
         with patch(

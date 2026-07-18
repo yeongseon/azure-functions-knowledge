@@ -60,8 +60,9 @@ def search(req, docs): ...
 - **`search`** — queries Notion filtered to `page` objects, honoring `top` as
   the page size. Each result page is converted to a `Document`; when
   `include_content=True`, page blocks are fetched and rendered to text.
-- **`get_document`** — retrieves a single page by id and always renders its full
-  block content. `metadata` includes the raw `blocks` and `properties`.
+- **`get_document`** — retrieves a single page by id and renders its block
+  content, truncated to `content_max_chars` when that limit is set (via
+  `_render_content`). `metadata` includes the raw `blocks` and `properties`.
 - **Content extraction** — child blocks are walked depth-first with pagination
   and recursion into children, bounded by `max_depth` / `max_blocks` and
   protected against cycles. Text is emitted in natural reading order.

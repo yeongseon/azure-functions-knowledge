@@ -1,8 +1,8 @@
 # Architecture
 
 This page explains what happens between a decorated Azure Functions handler and
-a knowledge provider. For the rendered diagram, see the dedicated
-[architecture diagram](#request-flow) below.
+a knowledge provider. The request flow below is shown as a Markdown sketch
+(see [Request flow](#request-flow)).
 
 ## Components
 
@@ -13,14 +13,16 @@ a knowledge provider. For the rendered diagram, see the dedicated
 | `KnowledgeProvider` | `providers/base.py` | Structural `Protocol` (`search`, `get_document`, `close`). |
 | `NotionProvider` | `providers/notion.py` | Built-in provider backed by the Notion API. |
 | `resolve_connection` | `auth.py` | `%VAR%` environment-variable substitution for connection strings. |
-| `Document` | `types.py` | Immutable-ish dataclass returned to handlers. |
+| `Document` | `types.py` | Dataclass returned to handlers (carries a mutable `metadata` dict). |
 | Errors | `errors.py` | `KnowledgeError` hierarchy. |
 
 ## Request flow
 
 At decoration time the binding validates configuration and replaces the handler
-with a wrapper. At invocation time the wrapper resolves the query, creates a
-provider, runs the search, injects the result, and always closes the provider:
+with a wrapper. For `input`, the wrapper resolves the query, creates a provider,
+runs the search, injects the results, and always closes the provider. For
+`inject_client`, the wrapper creates and injects the provider client (no query
+resolution or search) and always closes it when the handler returns:
 
 ```
 Azure Functions host

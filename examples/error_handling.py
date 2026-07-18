@@ -6,6 +6,8 @@ appropriate HTTP responses.
 
 from __future__ import annotations
 
+from typing import Any
+
 import azure.functions as func
 
 from azure_functions_knowledge import (
@@ -21,12 +23,12 @@ kb = KnowledgeBindings()
 
 @app.route(route="safe-search", methods=["GET"])
 @kb.inject_client("client", provider="notion", connection="%NOTION_TOKEN%")
-def safe_search(req: func.HttpRequest, client: object) -> func.HttpResponse:
+def safe_search(req: func.HttpRequest, client: Any) -> func.HttpResponse:
     import json
 
     query = req.params.get("q", "")
     try:
-        docs = client.search(query, top=5)  # type: ignore[union-attr]
+        docs = client.search(query, top=5)
     except AuthError:
         return func.HttpResponse("Invalid credentials", status_code=401)
     except ConfigurationError:

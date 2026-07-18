@@ -181,11 +181,21 @@ class KnowledgeBindings:
                 # Entering may create a provider and/or run a blocking search,
                 # so offload it to keep the event loop responsive.
                 value = await asyncio.to_thread(cm.__enter__)
+                kwargs[arg_name] = value
                 try:
-                    kwargs[arg_name] = value
-                    return await fn(*args, **kwargs)
-                finally:
-                    await asyncio.to_thread(cm.__exit__, None, None, None)
+                    result = await fn(*args, **kwargs)
+                except BaseException as exc:
+                    # Mirror ``with`` semantics: forward the exception to
+                    # ``__exit__`` and only suppress it if the context manager
+                    # returns a truthy value.
+                    suppress = await asyncio.to_thread(
+                        cm.__exit__, type(exc), exc, exc.__traceback__
+                    )
+                    if not suppress:
+                        raise
+                    return None
+                await asyncio.to_thread(cm.__exit__, None, None, None)
+                return result
 
             wrapper: Callable[..., Any] = async_wrapper
         else:

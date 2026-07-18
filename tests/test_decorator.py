@@ -242,6 +242,31 @@ class TestAsyncHandlers:
         assert len(captured) == 2
         assert len(captured[1]) == 5
 
+    @pytest.mark.asyncio()
+    async def test_async_input_propagates_error_and_closes(
+        self, kb: KnowledgeBindings
+    ) -> None:
+        created: list[FakeProvider] = []
+
+        class TrackingProvider(FakeProvider):
+            def __init__(self, **kwargs: Any) -> None:
+                super().__init__(**kwargs)
+                created.append(self)
+
+        register_provider("tracking", TrackingProvider)
+
+        @kb.input("docs", provider="tracking", query="boom", connection="tok")
+        async def handler(timer: Any, docs: list[Document]) -> None:
+            raise RuntimeError("handler failed")
+
+        with pytest.raises(RuntimeError, match="handler failed"):
+            await handler(timer=MagicMock())
+
+        # The exception must propagate AND the provider must be closed,
+        # mirroring synchronous ``with`` semantics.
+        assert len(created) == 1
+        assert created[0].closed is True
+
 
 class TestToolkitMetadata:
     def test_input_publishes_metadata(self, kb: KnowledgeBindings) -> None:

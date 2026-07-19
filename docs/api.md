@@ -128,6 +128,9 @@ for relevance ranking and is currently unset by the built-in provider.
 ```python
 @runtime_checkable
 class KnowledgeProvider(Protocol):
+    def __init__(
+        self, *, connection: str | Mapping[str, str], **kwargs: Any
+    ) -> None: ...
     def search(self, query: str, *, top: int = 5) -> list[Document]: ...
     def get_document(self, document_id: str) -> Document: ...
     def close(self) -> None: ...
@@ -135,7 +138,11 @@ class KnowledgeProvider(Protocol):
 
 The structural protocol every provider must satisfy. Because it is
 `runtime_checkable`, `isinstance(obj, KnowledgeProvider)` performs a method-name
-check. See [Usage → Custom providers](usage.md#custom-provider-registration).
+check. Note that `isinstance` checks skip dunder methods, so the `__init__`
+contract is enforced only by static typing: custom providers must accept a
+keyword-only `connection` argument (a string or mapping) plus arbitrary
+provider-specific `**kwargs`, matching how `create_provider` instantiates them.
+See [Usage → Custom providers](usage.md#custom-provider-registration).
 
 ### `register_provider`
 

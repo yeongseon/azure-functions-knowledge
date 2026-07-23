@@ -75,15 +75,55 @@ pip install dist/azure_functions_knowledge-<version>-py3-none-any.whl
 
 ---
 
-## Step 3: Publish to PyPI
+## Step 3: Publish to PyPI (GitHub Actions, primary)
+
+The `.github/workflows/publish-pypi.yml` workflow builds and uploads the distribution to PyPI on every `v*` tag push (or on demand via `workflow_dispatch`). It uses [PyPI trusted publishing](https://docs.pypi.org/trusted-publishers/) over OIDC, so no PyPI API token is stored as a secret.
+
+Pushing a release tag (produced by the `make release-*` targets in Step 1) is therefore all that is normally required to publish.
+
+### Trusted publisher configuration
+
+PyPI authorizes the upload by matching the OIDC claims presented by GitHub Actions against a trusted publisher registered on the PyPI project. The PyPI publisher config must use these exact values:
+
+| Field on PyPI publisher form | Value |
+| --- | --- |
+| PyPI project | `azure-functions-knowledge` |
+| Owner | `yeongseon` |
+| Repository name | `azure-functions-knowledge-python` |
+| Workflow filename | `publish-pypi.yml` |
+| Environment name | `pypi` |
+
+Notes:
+
+- **Workflow filename** is the file under `.github/workflows/` (`publish-pypi.yml`), **not** the workflow display name (`Publish to PyPI`). Entering the display name will not match.
+- **Repository name** is the GitHub repository slug (`azure-functions-knowledge-python` with the `-python` suffix from the toolkit-wide rename), not the PyPI project name (`azure-functions-knowledge`) and not the Python import name (`azure_functions_knowledge`).
+- **Environment name** matches `environment: pypi` declared on the `build-and-publish` job in the workflow. Renaming that environment requires updating the PyPI publisher record.
+- Enter all values exactly as shown; mismatches in repository name, workflow filename, environment, or project name will cause `invalid-publisher` at upload time.
+
+To register the publisher on PyPI:
+
+- If the PyPI project `azure-functions-knowledge` already exists, open the project page on PyPI → **Manage** → **Publishing** → **Add a new publisher** and enter the values above.
+- If the PyPI project does not exist yet (first release), register a **pending publisher** under the maintainer's PyPI account with the same values; the first successful upload will then create the project. A pending publisher does **not** reserve the project name on PyPI — anyone else can still register the project before the first publish, so cut the first release promptly.
+
+### Re-run a failed publish
+
+After updating the trusted publisher in PyPI, the existing tag can be re-published without cutting a new version:
+
+- From the GitHub Actions UI, open the failed `Publish to PyPI` run and click **Re-run failed jobs**, or
+- Trigger the workflow via `workflow_dispatch` with the existing tag as input (for example `v0.1.0`); the workflow checks out that tag and republishes.
+
+Confirm the run succeeds and the new version appears at `https://pypi.org/project/azure-functions-knowledge/`.
+
+### Local fallback (manual)
+
+Only needed if the GitHub Actions publish is unavailable; the OIDC workflow above is the supported path.
 
 ```bash
 make publish-pypi
 ```
 
 - Uses `hatch publish` under the hood
-- Relies on `~/.pypirc` for authentication (must contain PyPI token)
-
+- Relies on `~/.pypirc` for authentication (must contain a PyPI token)
 ---
 
 ## Step 4: (Optional) Publish to TestPyPI

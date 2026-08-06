@@ -135,7 +135,7 @@ make publish-test
 To install from TestPyPI:
 
 ```bash
-pip install --index-url https://test.pypi.org/simple/ azure-functions-knowledge-python
+pip install --index-url https://test.pypi.org/simple/ azure-functions-knowledge
 ```
 
 ---

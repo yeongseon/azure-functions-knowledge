@@ -1,5 +1,5 @@
 [project]
-name = "azure-functions-knowledge-python"
+name = "azure-functions-knowledge"
 description = "Knowledge retrieval (RAG) decorators for Azure Functions Python v2"
 keywords = ["azure-functions", "azure", "python", "v2", "knowledge", "rag", "retrieval", "notion", "serverless", "binding", "input-binding", "decorator"]
 authors = [{ name = "Yeongseon Choe", email = "yeongseon.choe@gmail.com" }]

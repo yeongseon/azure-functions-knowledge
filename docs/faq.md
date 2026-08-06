@@ -7,7 +7,7 @@ Python 3.10 through 3.14 (`>=3.10, <3.15`).
 ## Do I always need the Notion extra?
 
 Only if you use the built-in Notion provider. Custom providers have no such
-dependency. Install with `pip install azure-functions-knowledge-python[notion]`
+dependency. Install with `pip install azure-functions-knowledge[notion]`
 when you need Notion.
 
 ## Can I use this with async handlers?

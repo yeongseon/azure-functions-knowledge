@@ -7,7 +7,7 @@ Common problems and how to resolve them.
 The optional Notion dependency is not installed. Install the extra:
 
 ```bash
-pip install azure-functions-knowledge-python[notion]
+pip install azure-functions-knowledge[notion]
 ```
 
 ## `ConfigurationError: Environment variable '...' referenced in connection string is not set`

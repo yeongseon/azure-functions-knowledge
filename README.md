@@ -8,7 +8,7 @@
 [![codecov](https://codecov.io/gh/yeongseon/azure-functions-knowledge-python/branch/main/graph/badge.svg)](https://codecov.io/gh/yeongseon/azure-functions-knowledge-python)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://pre-commit.com/)
 [![Docs](https://img.shields.io/badge/docs-gh--pages-blue)](https://yeongseon.github.io/azure-functions-knowledge-python/)
-[![PyPI version](https://badge.fury.io/py/azure-functions-knowledge-python.svg)](https://badge.fury.io/py/azure-functions-knowledge-python)
+[![PyPI version](https://badge.fury.io/py/azure-functions-knowledge.svg)](https://badge.fury.io/py/azure-functions-knowledge)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -37,7 +37,7 @@ Retrieval-augmented generation on Azure Functions usually means hand-wiring a pr
 ## Installation
 
 ```bash
-pip install azure-functions-knowledge-python[notion]
+pip install azure-functions-knowledge[notion]
 ```
 
 ## Quick Start

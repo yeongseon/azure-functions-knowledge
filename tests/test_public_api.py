@@ -7,7 +7,7 @@ import azure_functions_knowledge
 
 class TestPublicApi:
     def test_version_matches_distribution_metadata(self) -> None:
-        assert azure_functions_knowledge.__version__ == version("azure-functions-knowledge-python")
+        assert azure_functions_knowledge.__version__ == version("azure-functions-knowledge")
 
     def test_all_exports(self) -> None:
         expected = {

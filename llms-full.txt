@@ -4,8 +4,8 @@
 
 ## Package Info
 
-- PyPI: `pip install azure-functions-knowledge-python`
-- Extras: `pip install azure-functions-knowledge-python[notion]`
+- PyPI: `pip install azure-functions-knowledge`
+- Extras: `pip install azure-functions-knowledge[notion]`
 - Version: 0.0.1
 - Python: >=3.10, <3.15
 - License: MIT

@@ -10,7 +10,7 @@ The provider depends on the optional `notion-client` package, installed via the
 `notion` extra:
 
 ```bash
-pip install azure-functions-knowledge-python[notion]
+pip install azure-functions-knowledge[notion]
 ```
 
 The provider is **registered unconditionally**, even when `notion-client` is not

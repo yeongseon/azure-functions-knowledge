@@ -42,7 +42,7 @@ class NotionProvider:
         if not _HAS_NOTION:
             msg = (
                 "notion-client is required for NotionProvider. "
-                "Install it with: pip install azure-functions-knowledge-python[notion]"
+                "Install it with: pip install azure-functions-knowledge[notion]"
             )
             raise ProviderError(msg)
 

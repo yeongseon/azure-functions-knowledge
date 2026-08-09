@@ -23,7 +23,9 @@ classifiers = [
 ]
 
 dependencies = [
-    "azure-functions>=1.22.0",
+    # Cap below 2.0.0: azure-functions v2 may change worker function-indexing
+    # behavior this package relies on. See #46 / dx#8.
+    "azure-functions>=1.22.0,<2.0.0",
 ]
 
 [project.urls]

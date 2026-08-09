@@ -51,6 +51,6 @@ def copy_identity_attrs(
     """
     for attr in attrs:
         try:
-            object.__setattr__(wrapper, attr, getattr(func, attr))
+            setattr(wrapper, attr, getattr(func, attr))
         except (AttributeError, TypeError):  # pragma: no cover
             pass

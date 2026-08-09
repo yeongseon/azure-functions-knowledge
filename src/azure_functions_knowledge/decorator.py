@@ -7,6 +7,11 @@ import inspect
 import logging
 from typing import Any
 
+from ._metadata import (
+    KNOWLEDGE_METADATA_VERSION,
+    KnowledgeMetadata,
+    set_knowledge_metadata,
+)
 from ._metadata_helpers import copy_identity_attrs
 from .errors import ConfigurationError
 from .providers.base import create_provider
@@ -16,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 _RESERVED_ARGS = frozenset({"timer", "req", "context", "msg", "input", "output"})
 _KNOWLEDGE_DECORATOR_ATTR = "_knowledge_decorators"
-_TOOLKIT_META_ATTR = "_azure_functions_metadata"
 
 
 def _get_decorators(fn: Callable[..., Any]) -> frozenset[str]:
@@ -30,22 +34,6 @@ def _mark_decorator(fn: Callable[..., Any], name: str) -> None:
     setattr(fn, _KNOWLEDGE_DECORATOR_ATTR, _get_decorators(fn) | {name})
 
 
-def _write_toolkit_metadata(
-    wrapper: Callable[..., Any],
-    fn: Callable[..., Any],
-    meta: dict[str, Any],
-) -> None:
-    """Publish knowledge metadata on the ecosystem-wide convention attribute.
-
-    Sibling toolkit packages (``azure-functions-openapi``, validation, logging)
-    introspect ``_azure_functions_metadata`` to compose behavior. Writing the
-    ``knowledge`` namespace here lets those tools discover knowledge-backed
-    handlers instead of the package being an island. Consumers never need to
-    import this package.
-    """
-    combined = dict(getattr(fn, _TOOLKIT_META_ATTR, None) or {})
-    combined["knowledge"] = meta
-    setattr(wrapper, _TOOLKIT_META_ATTR, combined)
 
 
 def _check_composition(fn: Callable[..., Any], name: str) -> None:
@@ -163,7 +151,7 @@ class KnowledgeBindings:
         arg_name: str,
         make_injection: Callable[[dict[str, Any], bool], Any],
         mark_name: str,
-        meta: dict[str, Any],
+        meta: KnowledgeMetadata,
     ) -> Callable[..., Any]:
         """Build the sync/async handler wrapper shared by both decorators.
 
@@ -215,7 +203,7 @@ class KnowledgeBindings:
         copy_identity_attrs(wrapper, fn)
         setattr(wrapper, "__signature__", _build_host_signature(fn, {arg_name}))
         _mark_decorator(wrapper, mark_name)
-        _write_toolkit_metadata(wrapper, fn, meta)
+        set_knowledge_metadata(wrapper, fn, meta)
         return wrapper
 
     def input(
@@ -287,8 +275,8 @@ class KnowledgeBindings:
                 with _provider_context(provider_name, provider_connection, provider_kwargs) as prov:
                     yield prov.search(resolved, top=top)
 
-            meta = {
-                "version": 1,
+            meta: KnowledgeMetadata = {
+                "version": KNOWLEDGE_METADATA_VERSION,
                 "mode": "input",
                 "provider": provider_name,
                 "arg_name": arg_name,
@@ -320,8 +308,8 @@ class KnowledgeBindings:
                 with _provider_context(provider_name, provider_connection, provider_kwargs) as prov:
                     yield AsyncProxy(prov) if is_async else prov
 
-            meta = {
-                "version": 1,
+            meta: KnowledgeMetadata = {
+                "version": KNOWLEDGE_METADATA_VERSION,
                 "mode": "inject_client",
                 "provider": provider_name,
                 "arg_name": arg_name,

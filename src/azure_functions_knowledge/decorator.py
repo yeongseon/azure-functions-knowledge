@@ -3,11 +3,11 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
-import functools
 import inspect
 import logging
 from typing import Any
 
+from ._metadata_helpers import copy_identity_attrs
 from .errors import ConfigurationError
 from .providers.base import create_provider
 from .types import Document
@@ -175,7 +175,6 @@ class KnowledgeBindings:
 
         if is_async:
 
-            @functools.wraps(fn)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 cm = make_injection(kwargs, True)
                 # Entering may create a provider and/or run a blocking search,
@@ -200,7 +199,6 @@ class KnowledgeBindings:
             wrapper: Callable[..., Any] = async_wrapper
         else:
 
-            @functools.wraps(fn)
             def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
                 with make_injection(kwargs, False) as value:
                     kwargs[arg_name] = value
@@ -208,6 +206,13 @@ class KnowledgeBindings:
 
             wrapper = sync_wrapper
 
+        # NOTE: ``functools.wraps`` is deliberately NOT used here. It sets
+        # ``__wrapped__ = fn``; the Azure Functions library resolves the user
+        # function by following ``__wrapped__`` (function_app._get_user_function),
+        # which would bind the original handler and re-expose the injected
+        # parameter to the worker. We copy only safe identity attributes and set
+        # an explicit ``__signature__`` (with the injected arg removed) instead.
+        copy_identity_attrs(wrapper, fn)
         setattr(wrapper, "__signature__", _build_host_signature(fn, {arg_name}))
         _mark_decorator(wrapper, mark_name)
         _write_toolkit_metadata(wrapper, fn, meta)

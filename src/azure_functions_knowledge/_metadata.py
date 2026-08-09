@@ -66,7 +66,12 @@ def set_knowledge_metadata(
 
 
 def read_knowledge_metadata(func: Any) -> KnowledgeMetadata | None:
-    """Return the typed ``knowledge`` metadata attached to ``func``, or ``None``."""
+    """Return the typed ``knowledge`` metadata attached to ``func``, or ``None``.
+
+    Returns ``None`` for undecorated functions (no convention attribute) and for
+    handlers decorated only by other toolkit namespaces, so sibling packages can
+    probe any handler safely.
+    """
     meta = getattr(func, METADATA_ATTR, None)
     if not isinstance(meta, dict):
         return None

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+### Documentation
+
+- *(release)* Require cookbook dogfood verification after publish 
+
+### Other
+
+- Bump version to 0.1.1 
+
 ### Bug Fixes
 
 - *(decorator)* Stop exposing __wrapped__ on knowledge handler wrappers (#46) 
@@ -11,6 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- Update changelog 
 - *(release)* Document PyPI trusted publisher configuration (#41) 
 - Require translation sync in the same PR as English changes (Closes #39) (#40) 
 - Align README with toolkit standard structure (#37) (#38) 

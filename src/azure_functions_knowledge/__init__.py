@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 import azure_functions_knowledge.providers.notion as _notion_module  # noqa: F401, E402
 

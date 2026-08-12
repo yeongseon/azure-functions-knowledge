@@ -1,5 +1,7 @@
 # Azure Functions Knowledge
 
+> ⚠️ **Experimental** — pattern exploration. APIs and behavior may change. Not recommended as a production dependency yet.
+
 > Part of the **Azure Functions Python DX Toolkit** — dogfood-tested by [azure-functions-cookbook-python](https://github.com/yeongseon/azure-functions-cookbook-python).
 
 [![Test and Coverage](https://github.com/yeongseon/azure-functions-knowledge-python/actions/workflows/ci-test.yml/badge.svg)](https://github.com/yeongseon/azure-functions-knowledge-python/actions/workflows/ci-test.yml)

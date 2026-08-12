@@ -1,4 +1,4 @@
-site_name: azure-functions-knowledge-python
+site_name: Azure Functions Knowledge
 site_url: https://yeongseon.github.io/azure-functions-knowledge-python/
 site_description: Knowledge retrieval (RAG) decorators for Azure Functions Python v2
 repo_url: https://github.com/yeongseon/azure-functions-knowledge-python

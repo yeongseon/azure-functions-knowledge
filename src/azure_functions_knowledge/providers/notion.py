@@ -37,7 +37,7 @@ class NotionProvider:
         content_max_chars: int | None = None,
         max_depth: int = DEFAULT_MAX_DEPTH,
         max_blocks: int = DEFAULT_MAX_BLOCKS,
-        **kwargs: Any,  # noqa: ARG002 - reserved for forward-compatible provider config
+        **kwargs: Any,
     ) -> None:
         if not _HAS_NOTION:
             msg = (

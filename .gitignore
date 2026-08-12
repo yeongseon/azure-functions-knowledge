@@ -37,3 +37,7 @@ site/
 # OS
 .DS_Store
 Thumbs.db
+
+# Agent orchestration state
+.sisyphus/
+.omc/

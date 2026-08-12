@@ -121,10 +121,13 @@ module = "examples.*"
 follow_imports = "skip"
 
 [tool.pytest.ini_options]
-addopts = "--cov=src/azure_functions_knowledge --cov-report=xml --cov-report=term-missing -ra -q"
+addopts = "--cov=src/azure_functions_knowledge --cov-report=xml --cov-report=term-missing -ra -q -m 'not e2e'"
 asyncio_mode = "strict"
 testpaths = ["tests"]
 pythonpath = ["src", "."]
+markers = [
+    "e2e: real-Azure end-to-end tests (deselected by default; require E2E_BASE_URL)",
+]
 
 [tool.coverage.run]
 branch = true

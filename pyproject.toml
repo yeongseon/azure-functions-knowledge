@@ -29,8 +29,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://yeongseon.github.io/azure-functions-knowledge-python/"
-Documentation = "https://yeongseon.github.io/azure-functions-knowledge-python/"
+Homepage = "https://yeongseon.dev/azure-functions-python/knowledge/"
+Documentation = "https://yeongseon.dev/azure-functions-python/knowledge/"
 Repository = "https://github.com/yeongseon/azure-functions-knowledge-python"
 Issues = "https://github.com/yeongseon/azure-functions-knowledge-python/issues"
 

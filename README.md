@@ -9,7 +9,7 @@
 [![Security Scans](https://github.com/yeongseon/azure-functions-knowledge-python/actions/workflows/security.yml/badge.svg)](https://github.com/yeongseon/azure-functions-knowledge-python/actions/workflows/security.yml)
 [![codecov](https://codecov.io/gh/yeongseon/azure-functions-knowledge-python/branch/main/graph/badge.svg)](https://codecov.io/gh/yeongseon/azure-functions-knowledge-python)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://pre-commit.com/)
-[![Docs](https://img.shields.io/badge/docs-gh--pages-blue)](https://yeongseon.github.io/azure-functions-knowledge-python/)
+[![Docs](https://img.shields.io/badge/docs-yeongseon.dev-blue)](https://yeongseon.dev/azure-functions-python/knowledge/)
 [![PyPI version](https://badge.fury.io/py/azure-functions-knowledge.svg)](https://badge.fury.io/py/azure-functions-knowledge)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -144,7 +144,7 @@ register_provider("my-provider", MyProvider)
 
 ## Documentation
 
-Full documentation: [https://yeongseon.github.io/azure-functions-knowledge-python/](https://yeongseon.github.io/azure-functions-knowledge-python/)
+Full documentation: [https://yeongseon.dev/azure-functions-python/knowledge/](https://yeongseon.dev/azure-functions-python/knowledge/)
 
 ## Development
 

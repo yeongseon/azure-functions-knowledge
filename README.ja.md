@@ -1,5 +1,7 @@
 # azure-functions-knowledge-python
 
+> ⚠️ **実験的（Experimental）** — パターン探索の段階です。API と振る舞いは変更される可能性があり、まだ本番環境の依存関係として推奨されません。
+
 [![Test and Coverage](https://github.com/yeongseon/azure-functions-knowledge-python/actions/workflows/ci-test.yml/badge.svg)](https://github.com/yeongseon/azure-functions-knowledge-python/actions/workflows/ci-test.yml)
 [![PyPI version](https://badge.fury.io/py/azure-functions-knowledge.svg)](https://badge.fury.io/py/azure-functions-knowledge)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

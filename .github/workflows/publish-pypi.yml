@@ -202,4 +202,4 @@ jobs:
       # (repo rename, environment, or workflow filename mismatch), not a
       # workflow secret issue.
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@release/v1 # pin-exempt: PyPA official publisher (trusted-publisher OIDC); tracks release/v1 by design

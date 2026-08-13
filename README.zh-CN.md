@@ -9,6 +9,8 @@ Azure Functions Python v2 的知识检索（RAG）装饰器。
 
 其他语言: [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
+> ℹ️ 本翻译由社区维护，仅供参考，可能落后于最新的 [English README](README.md)。请以英文版为准。
+
 ## 功能
 
 - **基于装饰器的 API** — 与 Azure Functions Python v2 编程模型无缝集成

@@ -100,7 +100,7 @@ register_provider("my-provider", MyProvider)
 
 ## ドキュメント
 
-完全なドキュメント: [https://yeongseon.github.io/azure-functions-knowledge-python/](https://yeongseon.github.io/azure-functions-knowledge-python/)
+完全なドキュメント: [https://yeongseon.dev/azure-functions-python/knowledge/](https://yeongseon.dev/azure-functions-python/knowledge/)
 
 ## ライセンス
 

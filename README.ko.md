@@ -9,6 +9,8 @@ Azure Functions Python v2용 지식 검색(RAG) 데코레이터입니다.
 
 다른 언어로 읽기: [English](README.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md)
 
+> ℹ️ 이 번역은 커뮤니티가 관리하는 참고용 문서로, 최신 [English README](README.md)보다 뒤처질 수 있습니다. 정확한 최신 정보는 영어 원문을 기준으로 하세요.
+
 ## 기능
 
 - **데코레이터 기반 API** — Azure Functions Python v2 프로그래밍 모델과의 원활한 통합

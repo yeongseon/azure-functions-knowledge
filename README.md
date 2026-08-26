@@ -111,6 +111,8 @@ def handler(req, client) -> func.HttpResponse:
 - `input` and `inject_client` are mutually exclusive
 - No decorator can be applied twice to the same handler
 
+> Why "Azure decorators outermost"? It follows from how the Azure Functions Python worker binds handler parameters by name. See [How the worker binds handlers](https://yeongseon.dev/azure-functions-python/platform/how-the-worker-binds-handlers/).
+
 ## Connection Strings
 
 ```python

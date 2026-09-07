@@ -50,7 +50,7 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
-    "ruff==0.16.5",
+    "ruff==0.16.6",
 ]
 docs = [
     "mkdocs<2.0",
